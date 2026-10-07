@@ -1,0 +1,4 @@
+[core]
+    remote = aws-s3
+['remote "aws-s3"']
+    url = s3://income-lab-2a202602866-388439400942/dvc
