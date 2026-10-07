@@ -34,8 +34,8 @@ Chỉ 24,8% mẫu Adult Income thuộc lớp trên 50K. Mô hình luôn đoán `
 
 | Khó khăn | Nguyên nhân | Cách giải quyết |
 |---|---|---|
-| GCP trả lỗi billing 403 | Tài khoản chưa kích hoạt billing. | Chuyển sang AWS theo lựa chọn của đề. |
-| Terminal không nhận AWS CLI | VS Code chưa cập nhật PATH. | Gọi `aws.exe` trực tiếp và dùng profile `lab`. |
+| GCP trả lỗi billing 403 | Tài khoản chưa kích hoạt billing. | Chuyển sang AWS theo đề. |
+| Terminal không nhận AWS CLI | VS Code chưa cập nhật PATH. | Dùng `aws.exe` với profile `lab`. |
 | S3 từ chối tạo bucket | IAM user thiếu `s3:CreateBucket`. | Cấp policy, tạo bucket và xác nhận `dvc push`. |
 
 ---
@@ -53,6 +53,7 @@ Chỉ 24,8% mẫu Adult Income thuộc lớp trên 50K. Mô hình luôn đoán `
 
 ## 5. Phần Bonus Đã Thực Hiện
 
+- [ ] Bonus 1 - Tracking MLflow từ xa với DagsHub: Chưa thực hiện.
 - [x] Bonus 2: Quét ngưỡng 0,1–0,9; ngưỡng 0,3 đạt F1 `0.7537`.
 - [x] Bonus 3: Lưu precision `0.7014`, recall `0.8145` và confusion matrix.
 - [x] Bonus 4: Chỉ promote candidate khi F1 không giảm.
