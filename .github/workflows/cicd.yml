@@ -90,7 +90,7 @@ jobs:
           F1=$(python -c "import json; d=json.load(open('outputs/report.json')); print(d['f1_score'])")
           echo "f1=$F1" >> $GITHUB_OUTPUT
 
-      - name: Upload model to Amazon S3
+      - name: Upload candidate to Amazon S3
         env:
           ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
         run: |
@@ -99,19 +99,23 @@ jobs:
           import boto3
 
           s3 = boto3.client("s3")
-          s3.upload_file(
-              "models/model.joblib",
-              os.environ["ARTIFACT_BUCKET"],
-              "artifacts/current/model.joblib",
-          )
-          print("Uploaded model.joblib to Amazon S3 successfully")
+          bucket = os.environ["ARTIFACT_BUCKET"]
+          prefix = f"artifacts/candidates/{os.environ['GITHUB_SHA']}"
+          s3.upload_file("models/model.joblib", bucket, f"{prefix}/model.joblib")
+          for filename in os.listdir("outputs"):
+              s3.upload_file(
+                  os.path.join("outputs", filename),
+                  bucket,
+                  f"{prefix}/evaluation/{filename}",
+              )
+          print(f"Uploaded candidate to s3://{bucket}/{prefix}/")
           PYEOF
 
       - name: Save report as artifact
         uses: actions/upload-artifact@v4
         with:
           name: report
-          path: outputs/report.json
+          path: outputs/
 
 
   # ---------------------------------------------------------------------------
@@ -129,14 +133,65 @@ jobs:
     needs: train
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-      - name: Check quality gate
+      - name: Install rollback dependency
+        run: pip install boto3==1.35.24
+
+      - name: Authenticate to Amazon S3
+        env:
+          STORAGE_CREDENTIALS: ${{ secrets.STORAGE_CREDENTIALS }}
         run: |
           python - <<'PYEOF'
+          import json
+          import os
+
+          credentials = json.loads(os.environ["STORAGE_CREDENTIALS"])
+          region = credentials.get("aws_region", "ap-southeast-1")
+          with open(os.environ["GITHUB_ENV"], "a") as env_file:
+              print(f"AWS_ACCESS_KEY_ID={credentials['aws_access_key_id']}", file=env_file)
+              print(f"AWS_SECRET_ACCESS_KEY={credentials['aws_secret_access_key']}", file=env_file)
+              print(f"AWS_DEFAULT_REGION={region}", file=env_file)
+              print(f"AWS_REGION={region}", file=env_file)
+          PYEOF
+
+      - name: Check F1 and rollback gates
+        env:
+          ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
+        run: |
+          python - <<'PYEOF'
+          import json
+          import os
+          import boto3
+          from botocore.exceptions import ClientError
+
           f1 = float("${{ needs.train.outputs.f1 }}")
           if f1 < 0.65:
               raise SystemExit(f"FAILED: f1_score {f1:.4f} < 0.65. Huy trien khai.")
-          print(f"PASSED: f1_score {f1:.4f} >= 0.65. Dang trien khai model.")
+
+          s3 = boto3.client("s3")
+          try:
+              response = s3.get_object(
+                  Bucket=os.environ["ARTIFACT_BUCKET"],
+                  Key="artifacts/current/report.json",
+              )
+              old_f1 = float(json.loads(response["Body"].read())["f1_score"])
+          except ClientError as error:
+              if error.response["Error"]["Code"] not in ("NoSuchKey", "404"):
+                  raise
+              old_f1 = -1.0
+
+          if f1 < old_f1:
+              raise SystemExit(
+                  f"ROLLBACK: candidate F1 {f1:.4f} < current F1 {old_f1:.4f}. "
+                  "Giu nguyen model hien tai."
+              )
+          print(
+              f"PASSED: candidate F1 {f1:.4f} >= 0.65 and "
+              f">= current F1 {old_f1:.4f}."
+          )
           PYEOF
 
 
@@ -150,6 +205,64 @@ jobs:
     needs: quality-gate
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install release dependency
+        run: pip install boto3==1.35.24
+
+      - name: Authenticate to Amazon S3
+        env:
+          STORAGE_CREDENTIALS: ${{ secrets.STORAGE_CREDENTIALS }}
+        run: |
+          python - <<'PYEOF'
+          import json
+          import os
+
+          credentials = json.loads(os.environ["STORAGE_CREDENTIALS"])
+          region = credentials.get("aws_region", "ap-southeast-1")
+          with open(os.environ["GITHUB_ENV"], "a") as env_file:
+              print(f"AWS_ACCESS_KEY_ID={credentials['aws_access_key_id']}", file=env_file)
+              print(f"AWS_SECRET_ACCESS_KEY={credentials['aws_secret_access_key']}", file=env_file)
+              print(f"AWS_DEFAULT_REGION={region}", file=env_file)
+              print(f"AWS_REGION={region}", file=env_file)
+          PYEOF
+
+      - name: Promote candidate model
+        env:
+          ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
+        run: |
+          python - <<'PYEOF'
+          import os
+          import boto3
+
+          s3 = boto3.client("s3")
+          bucket = os.environ["ARTIFACT_BUCKET"]
+          prefix = f"artifacts/candidates/{os.environ['GITHUB_SHA']}"
+          for source, destination in (
+              (f"{prefix}/model.joblib", "artifacts/current/model.joblib"),
+              (f"{prefix}/evaluation/report.json", "artifacts/current/report.json"),
+          ):
+              s3.copy_object(
+                  Bucket=bucket,
+                  CopySource={"Bucket": bucket, "Key": source},
+                  Key=destination,
+              )
+          print("Promoted candidate model and report to artifacts/current/")
+          PYEOF
+
+      - name: Copy serving code to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "src/serve.py"
+          target: "/home/ubuntu"
+          overwrite: true
 
       - name: SSH deploy to VM
         uses: appleboy/ssh-action@v1.0.3

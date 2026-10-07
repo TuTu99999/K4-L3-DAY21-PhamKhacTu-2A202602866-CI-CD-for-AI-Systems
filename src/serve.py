@@ -25,7 +25,16 @@ def download_model():
 
 
 download_model()
-model = joblib.load(MODEL_PATH)
+artifact = joblib.load(MODEL_PATH)
+if isinstance(artifact, dict) and "model" in artifact:
+    model = artifact["model"]
+    decision_threshold = float(artifact.get("decision_threshold", 0.5))
+    feature_names = artifact.get("feature_names")
+else:
+    # Tuong thich model cu da deploy truoc khi bonus threshold duoc them.
+    model = artifact
+    decision_threshold = 0.5
+    feature_names = None
 
 
 class ScoreRequest(BaseModel):
@@ -61,9 +70,15 @@ def score(req: ScoreRequest):
             detail="Expected 10 features (adult income)",
         )
 
-    pred = int(model.predict([req.features])[0])
+    probability = float(model.predict_proba([req.features])[0, 1])
+    pred = int(probability >= decision_threshold)
     label = "thu_nhap_cao" if pred == 1 else "thu_nhap_thap"
-    return {"prediction": pred, "label": label}
+    return {
+        "prediction": pred,
+        "label": label,
+        "probability": probability,
+        "decision_threshold": decision_threshold,
+    }
 
 
 if __name__ == "__main__":

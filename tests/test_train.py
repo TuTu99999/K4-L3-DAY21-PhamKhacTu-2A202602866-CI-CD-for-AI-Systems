@@ -2,7 +2,8 @@ import os
 import json
 import numpy as np
 import pandas as pd
-from src.train import train
+import joblib
+from src.train import DECISION_THRESHOLDS, find_best_threshold, train
 
 
 FEATURE_NAMES = [
@@ -66,6 +67,18 @@ def test_report_file_created(tmp_path, monkeypatch):
         report = json.load(f)
     assert "f1_score" in report
     assert "accuracy" in report
+    assert "precision" in report
+    assert "recall" in report
+    assert report["decision_threshold"] in DECISION_THRESHOLDS
+    assert "data_drift_detected" in report
+
+    for artifact in (
+        "threshold_scan.json",
+        "classification_report.json",
+        "confusion_matrix.json",
+        "drift_report.json",
+    ):
+        assert os.path.exists(f"outputs/{artifact}")
 
 
 def test_model_file_created(tmp_path, monkeypatch):
@@ -79,3 +92,16 @@ def test_model_file_created(tmp_path, monkeypatch):
     )
 
     assert os.path.exists("models/model.joblib")
+    artifact = joblib.load("models/model.joblib")
+    assert "model" in artifact
+    assert artifact["decision_threshold"] in DECISION_THRESHOLDS
+    assert artifact["feature_names"] == FEATURE_NAMES
+
+
+def test_find_best_threshold_uses_positive_class_f1():
+    y_true = np.array([0, 0, 1, 1])
+    probabilities = np.array([0.05, 0.35, 0.45, 0.95])
+    threshold, scores = find_best_threshold(y_true, probabilities)
+
+    assert threshold == 0.4
+    assert scores[threshold] == 1.0
