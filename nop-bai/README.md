@@ -13,7 +13,8 @@ nop-bai/
     ├── 02-actions-buoc-2.png
     ├── 03-actions-buoc-3.png
     ├── 04-curl-api.png
-    └── 05-cloud-storage.png
+    ├── 05a-storage-dvc.png
+    └── 05b-storage-model.png
 ```
 
 ---
@@ -22,11 +23,11 @@ nop-bai/
 
 Đánh dấu `[x]` khi hoàn thành từng mục:
 
-- [ ] Repo GitHub ở chế độ **public** và chứa toàn bộ code, cấu hình đã hoàn thiện.
-- [ ] Đủ 5 ảnh trong `anh-chup-man-hinh/`, đúng tên file, đúng thứ tự (xem
+- [x] Repo GitHub ở chế độ **public** và chứa toàn bộ code, cấu hình đã hoàn thiện.
+- [x] Đủ bằng chứng ảnh 01–05 trong `anh-chup-man-hinh/`, đúng tên và thứ tự (xem
       [yêu cầu chi tiết](anh-chup-man-hinh/README.md)).
-- [ ] `bao-cao.md` đã điền đủ 3 mục bắt buộc và không vượt quá 1 trang A4.
-- [ ] Đã `git push` toàn bộ thư mục `nop-bai/` lên GitHub.
+- [x] `bao-cao.md` đã điền đủ các mục bắt buộc và có 539 từ.
+- [x] Đã `git push` toàn bộ thư mục `nop-bai/` lên GitHub.
 - [ ] Dán URL repo GitHub vào bài nộp trên **https://vlearn.dev**.
 - [ ] Mở lại URL vừa nộp ở chế độ ẩn danh để chắc chắn repo public và người chấm xem được.
 
@@ -40,7 +41,7 @@ nop-bai/
 | `02-actions-buoc-2.png` | Bước 2 - CI/CD (bốn jobs màu xanh) | 16 |
 | `03-actions-buoc-3.png` | Bước 3 - Tự động hóa | 12 |
 | `04-curl-api.png` | Bước 2 - Serving | 12 |
-| `05-cloud-storage.png` | Bước 2 - DVC | 12 |
+| `05a-storage-dvc.png`, `05b-storage-model.png` | Bước 2 - DVC và model artifact | 12 |
 
 Phần `bao-cao.md` chứng minh hạng mục **Bước 1 - Phân tích** (4 điểm) và là nơi bạn giải
 trình khi một ảnh nào đó chưa thể hiện đủ (ví dụ quality gate đã chặn đúng một lần).
